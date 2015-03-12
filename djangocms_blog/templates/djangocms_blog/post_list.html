@@ -7,12 +7,11 @@
 <section class="blog-list">
     {% block blog_title %}
     <header>
-        <h2>
-        {% if author %}{% trans "Articles by" %} {{ author.get_full_name }}
-        {% elif archive_date %}{% trans "Archive" %} &ndash; {% if month %}{{ archive_date|date:'F' }} {% endif %}{{ year }}
-        {% elif tagged_entries %}{% trans "Tag" %} &ndash; {{ tagged_entries|capfirst }}
-        {% elif category %}{% trans "Category" %} &ndash; {{ category }}{% endif %}
-        </h2>
+        {% if author %}<h2>{% trans "Articles by" %} {{ author.get_full_name }}</h2>
+        {% elif archive_date %} <h2>{% trans "Archive" %} &ndash; {% if month %}{{ archive_date|date:'F' }} {% endif %}{{ year }} </h2>
+        {% elif tagged_entries %} <h2>{% trans "Tag" %} &ndash; {{ tagged_entries|capfirst }} </h2>
+        {% elif category %} <h2>{% trans "Category" %} &ndash; {{ category }} </h2>
+        {% endif %}
     </header>
     {% endblock %}
     {% for post in post_list %}

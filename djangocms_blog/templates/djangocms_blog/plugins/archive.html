@@ -1,7 +1,7 @@
 {% load i18n %}
 {% load url from future %}{% spaceless %}
 <div class="plugin plugin-blog">
-    <h3>{% trans "Archive" %}</h3>
+    <h4>{% trans "Archive" %}</h4>
     {% regroup dates by date.year as years %}
     {% with current_year=year current_month=month %}
     <ul class="blog-archive">

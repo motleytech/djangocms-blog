@@ -1,7 +1,7 @@
 {% load i18n %}
 {% load url from future %}{% spaceless %}
 <div class="plugin plugin-blog">
-    <h3>{% trans "Categories" %}</h3>
+    <h4>{% trans "Categories" %}</h4>
     <ul class="blog-categories">
         {% for category in categories %}
             <li><a href="{% url 'djangocms_blog:posts-category' category=category.slug %}" class="blog-categories-{{ category.count }}">

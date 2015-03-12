@@ -1,13 +1,21 @@
 {% extends CMS_TEMPLATE %}
+{% load cms_tags staticfiles sekizai_tags menu_tags %}
 
 {% block meta %}
-    {%  if meta %}
+    {% if meta %}
         {% include "meta_mixin/meta.html" %}
     {% endif %}
 {% endblock meta %}
 
 {% block content %}
-<div class="app app-blog span8">
-    {% block content_blog %}{% endblock %}
-</div>
+    <div class="multicolumn2 clearfix">
+        <div class="column" style="width: 73%; float: left;">
+            <div class="app app-blog span8">
+                {% block content_blog %}{% endblock %}
+            </div>
+        </div>
+        <div class="column blog-sidebar" style="width: 26%; float: left; margin-left: 1%;">
+            {% static_placeholder "blog-sidebar" %}
+        </div>
+    </div>
 {% endblock content %}
