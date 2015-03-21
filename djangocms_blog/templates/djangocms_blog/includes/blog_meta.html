@@ -9,20 +9,26 @@
         {% trans "by" %} --anonymous--
     {% endif %}
 </span>
- | Tags : [
-<span class="post-detail tags">
-    {% if post.categories.exists %}
+
+{% if post.categories.exists %}
+    | Categories : [
+    <span class="post-detail categories">
         {% for category in post.categories.all %}
             {% if category.slug %}
                 <span class="category_{{ forloop.counter }}"><a href="{% url 'djangocms_blog:posts-category' category=category.slug %}" class="blog-categories-{{ category.count }}">{{ category.name }}</a>{% if not forloop.last %}, {% endif %}</span>
             {% endif %}
         {% endfor %}
-    {% endif %}
-    {% if post.tags.exists %}
+    </span>
+    ]
+{% endif %}
+
+{% if post.tags.exists %}
+    | Tags : [
+    <span class="post-detail tags">
         {% for tag in post.tags.all %}
             <span class="tag_{{ forloop.counter }}"><a href="{% url 'djangocms_blog:posts-tagged' tag=tag.slug %}" class="blog-tag blog-tag-{{ tag.count }}">{{ tag.name }}</a>{% if not forloop.last %}, {% endif %}</span>
         {% endfor %}
-    {% endif %}
-</span>
-]
+    </span>
+    ]
+{% endif %}
 
