@@ -1,8 +1,12 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import, print_function, unicode_literals
 
+import os.path
+
+from aldryn_apphooks_config.mixins import AppConfigMixin
 from django.contrib.auth import get_user_model
-from django.core.urlresolvers import resolve
+from django.core.exceptions import ImproperlyConfigured
+from django.core.urlresolvers import reverse
 from django.utils.timezone import now
 from django.utils.translation import get_language
 from django.views.generic import DetailView, ListView
@@ -14,25 +18,43 @@ from .settings import get_setting
 User = get_user_model()
 
 
-class BaseBlogView(ViewUrlMixin):
+class BaseBlogView(AppConfigMixin, ViewUrlMixin):
+
+    def get_view_url(self):
+        if not self.view_url_name:
+            raise ImproperlyConfigured(
+                'Missing `view_url_name` attribute on {0}'.format(self.__class__.__name__)
+            )
+
+        return reverse(
+            self.view_url_name,
+            args=self.args,
+            kwargs=self.kwargs,
+            current_app=self.namespace
+        )
 
     def get_queryset(self):
         language = get_language()
-        queryset = self.model._default_manager.all().active_translations(language_code=language)
+        queryset = self.model._default_manager.namespace(
+            self.namespace
+        ).active_translations(
+            language_code=language
+        )
         if not getattr(self.request, 'toolbar', False) or not self.request.toolbar.edit_mode:
             queryset = queryset.published()
         return queryset
 
-    def render_to_response(self, context, **response_kwargs):
-        response_kwargs['current_app'] = resolve(self.request.path).namespace
-        return super(BaseBlogView, self).render_to_response(context, **response_kwargs)
+    def get_template_names(self):
+        if self.config.template_prefix:
+            return os.path.join(self.config.template_prefix, self.base_template_name)
+        else:
+            return os.path.join('djangocms_blog', self.base_template_name)
 
 
 class PostListView(BaseBlogView, ListView):
     model = Post
     context_object_name = 'post_list'
-    template_name = 'djangocms_blog/post_list.html'
-    paginate_by = get_setting('PAGINATION')
+    base_template_name = 'post_list.html'
     view_url_name = 'djangocms_blog:posts-latest'
 
     def get_context_data(self, **kwargs):
@@ -40,11 +62,14 @@ class PostListView(BaseBlogView, ListView):
         context['TRUNCWORDS_COUNT'] = get_setting('POSTS_LIST_TRUNCWORDS_COUNT')
         return context
 
+    def get_paginate_by(self, queryset):
+        return self.config.paginate_by
+
 
 class PostDetailView(TranslatableSlugMixin, BaseBlogView, DetailView):
     model = Post
     context_object_name = 'post'
-    template_name = 'djangocms_blog/post_detail.html'
+    base_template_name = 'post_detail.html'
     slug_field = 'slug'
     view_url_name = 'djangocms_blog:post-detail'
 
@@ -71,7 +96,7 @@ class PostDetailView(TranslatableSlugMixin, BaseBlogView, DetailView):
 class PostArchiveView(BaseBlogView, ListView):
     model = Post
     context_object_name = 'post_list'
-    template_name = 'djangocms_blog/post_list.html'
+    base_template_name = 'post_list.html'
     date_field = 'date_published'
     allow_empty = True
     allow_future = True
@@ -99,7 +124,7 @@ class PostArchiveView(BaseBlogView, ListView):
 class TaggedListView(BaseBlogView, ListView):
     model = Post
     context_object_name = 'post_list'
-    template_name = 'djangocms_blog/post_list.html'
+    base_template_name = 'post_list.html'
     paginate_by = get_setting('PAGINATION')
     view_url_name = 'djangocms_blog:posts-tagged'
 
@@ -118,7 +143,7 @@ class TaggedListView(BaseBlogView, ListView):
 class AuthorEntriesView(BaseBlogView, ListView):
     model = Post
     context_object_name = 'post_list'
-    template_name = 'djangocms_blog/post_list.html'
+    base_template_name = 'post_list.html'
     paginate_by = get_setting('PAGINATION')
     view_url_name = 'djangocms_blog:posts-authors'
 
@@ -138,7 +163,7 @@ class AuthorEntriesView(BaseBlogView, ListView):
 class CategoryEntriesView(BaseBlogView, ListView):
     model = Post
     context_object_name = 'post_list'
-    template_name = 'djangocms_blog/post_list.html'
+    base_template_name = 'post_list.html'
     _category = None
     paginate_by = get_setting('PAGINATION')
     view_url_name = 'djangocms_blog:posts-category'
