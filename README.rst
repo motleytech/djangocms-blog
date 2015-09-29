@@ -19,36 +19,32 @@ djangocms-blog
         :target: https://coveralls.io/r/nephila/djangocms-blog
         :alt: Test coverage
 
+.. image:: https://codeclimate.com/github/nephila/djangocms-blog/badges/gpa.svg
+   :target: https://codeclimate.com/github/nephila/djangocms-blog
+   :alt: Code Climate
+
 
 A djangoCMS 3 blog application.
-
-Still experimental and untested. You are welcome if you want to try it; if
-you encounter any issue, please open an issue.
 
 Supported Django versions:
 
 * Django 1.6
 * Django 1.7
+* Django 1.8
 
 Supported django CMS versions:
 
-* django CMS 3.0
+* django CMS 3.x
 
-.. warning:: Starting from version 0.3 the length of the meta_description and
-             meta_title fields has been changed according to the most common
-             defaults for search engines. Existing data will not be affected,
-             but widgets that enforce the length for new data is now being used.
 
-.. warning:: Starting from 0.3 BlogLatestEntriesPlugin and BlogAuthorPostsPlugin
-             the plugin API has changed: ``BlogLatestEntriesPlugin.get_posts``,
-             ``BlogAuthorPostsPlugin.get_authors`` requires the ``request``
-             argument. Templates has been changed to use a context variable
-             instead. Please update your plugin templates accordingly.
+.. warning:: Version 0.6 changes the field of LatestPostsPlugin.tags field.
+             A datamigration is in place to migrate the data, but check that
+             works ok for your project before upgrading, as this might delete
+             some relevant data.
 
-.. warning:: To ease migration to version 0.3, djangocms-blog depends on south
-             even on Django 1.7; while this is unnecessary for Dajngo 1.7, it
-             makes transition to version 0.3 painless. Hard dependency will be
-             removed in 0.5.
+.. warning:: Starting from version 0.5, this package does not declare dependency
+             on South anymore; please install it separately if using this
+             application on Django 1.6.
 
 
 Quickstart
@@ -68,7 +64,6 @@ Add ``djangocms_blog`` and its dependencies to INSTALLED_APPS::
         'parler',
         'taggit',
         'taggit_autosuggest',
-        'django_select2',
         'meta',
         'meta_mixin',
         'admin_enhancer',
@@ -114,14 +109,20 @@ suited for your deployment.
     META_SITE_PROTOCOL = 'http'
     META_USE_SITES = True
     
-* If you are using Django 1.7, be aware than ``filer``, ``cmsplugin_filer``
-  and ``django-cms`` currently requires you to setup ``MIGRATION_MODULES`` in settings::
+* If you are using Django 1.7+, be aware than ``filer`` < 0.9.10, ``cmsplugin_filer``
+  and ``django-cms`` < 3.1 currently requires you to setup ``MIGRATION_MODULES`` in settings::
   
-  MIGRATION_MODULES = {
-     'cms': 'cms.migrations_django',
-     'filer': 'filer.migrations_django',
-     'cmsplugin_filer_image': 'cmsplugin_filer_image.migrations_django',
-}
+    MIGRATION_MODULES = {
+       'cms': 'cms.migrations_django', # only for django CMS 3.0
+       'menus': 'menus.migrations_django',  # only for django CMS 3.0
+       'filer': 'filer.migrations_django',  # only for django filer 0.9.9 and below
+       'cmsplugin_filer_image': 'cmsplugin_filer_image.migrations_django',
+    }
+    
+  Please check
+  `django CMS installation <http://django-cms.readthedocs.org/en/support-3.0.x/how_to/integrate.html#installing-and-configuring-django-cms-in-your-django-project>`_,
+  `cmsplugin-filer README <https://github.com/stefanfoulis/cmsplugin-filer#installation>`_
+  for detailed information.
 
 * Configure parler according to your languages::
 
@@ -143,6 +144,7 @@ suited for your deployment.
   * Create a new django CMS page
   * Go to Advanced settings and select Blog from the Application selector;
   * Eventually customise the Application instance name;
+  * Publish the page
   * Restart the project instance to properly load blog urls.
 
 * Add and edit blog by creating them in the admin or using the toolbar,
@@ -188,6 +190,8 @@ Settings
   to control the chosen comments framework; (default: True)
 * BLOG_USE_PLACEHOLDER: Post content is managed via placeholder; if ``False`` a
   simple HTMLField is used; (default: True)
+* BLOG_USE_ABSTRACT: Use an abstract field for the post; if ``False`` no abstract field
+  is available for every post; (default: True)
 * BLOG_IMAGE_THUMBNAIL_SIZE: Size of the main image when shown on the post lists;
   it's a dictionary with ``size``, ``crop`` and ``upscale`` keys;
   (default: ``{'size': '120x120', 'crop': True,'upscale': False}``)
@@ -218,7 +222,9 @@ Social media tags settings
 * BLOG_GPLUS_TYPE: Google+ Snippet type for the post object; (default: Blog)
 * BLOG_GPLUS_AUTHOR: Google+ account of the post author
 
-.. image:: https://d2weczhvl823v0.cloudfront.net/nephila/djangocms-blog/trend.png
-   :alt: Bitdeli badge
-   :target: https://bitdeli.com/free
 
+Known djangocms-blog websites
++++++++++++++++++++++++++++++
+
+* http://nephila.co.uk/blog
+* https://blog.ungleich.ch/

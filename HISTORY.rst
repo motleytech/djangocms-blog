@@ -3,7 +3,23 @@
 History
 -------
 
-0.4.0 (unreleased)
+0.6.0 (unreleased)
+++++++++++++++++++
+
+* LatestPostsPlugin tags field has been changed to a plain TaggableManager field.
+  A migration is in place to move the data, but backup your data first.
+
+0.5.0 (2015-08-09)
+++++++++++++++++++
+
+* Add support for Django 1.8
+* Drop dependency on Django select2
+* Code cleanups
+* Enforce flake8 / isort checks
+* Add categories menu
+* Add option to disable the abstract
+
+0.4.0 (2015-03-22)
 ++++++++++++++++++
 
 * Fix Django 1.7 issues

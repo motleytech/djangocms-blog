@@ -1,7 +1,9 @@
 # -*- coding: utf-8 -*-
-from operator import itemgetter
+from __future__ import absolute_import, print_function, unicode_literals
+
 from heapq import nlargest
-from itertools import repeat, ifilter
+from itertools import ifilter, repeat
+from operator import itemgetter
 
 
 class Counter(dict):

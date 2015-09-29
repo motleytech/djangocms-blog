@@ -1,13 +1,14 @@
 # -*- coding: utf-8 -*-
+from __future__ import absolute_import, print_function, unicode_literals
+
 from django.contrib.auth import get_user_model
 from django.core.urlresolvers import resolve
 from django.utils.timezone import now
 from django.utils.translation import get_language
-from django.views.generic import ListView, DetailView
+from django.views.generic import DetailView, ListView
+from parler.views import TranslatableSlugMixin, ViewUrlMixin
 
-from parler.views import ViewUrlMixin, TranslatableSlugMixin
-
-from .models import Post, BlogCategory, BLOG_CURRENT_POST_IDENTIFIER
+from .models import BLOG_CURRENT_POST_IDENTIFIER, BlogCategory, Post
 from .settings import get_setting
 
 User = get_user_model()
@@ -17,10 +18,10 @@ class BaseBlogView(ViewUrlMixin):
 
     def get_queryset(self):
         language = get_language()
-        queryset = self.model._default_manager.active_translations(language_code=language)
+        queryset = self.model._default_manager.all().active_translations(language_code=language)
         if not getattr(self.request, 'toolbar', False) or not self.request.toolbar.edit_mode:
             queryset = queryset.published()
-        return queryset.on_site()
+        return queryset
 
     def render_to_response(self, context, **response_kwargs):
         response_kwargs['current_app'] = resolve(self.request.path).namespace
@@ -46,6 +47,18 @@ class PostDetailView(TranslatableSlugMixin, BaseBlogView, DetailView):
     template_name = 'djangocms_blog/post_detail.html'
     slug_field = 'slug'
     view_url_name = 'djangocms_blog:post-detail'
+
+    def get_queryset(self):
+        queryset = self.model._default_manager.all()
+        if not getattr(self.request, 'toolbar', False) or not self.request.toolbar.edit_mode:
+            queryset = queryset.published()
+        return queryset
+
+    def get(self, *args, **kwargs):
+        # submit object to cms to get corrent language switcher and selected category behavior
+        if hasattr(self.request, 'toolbar'):
+            self.request.toolbar.set_object(self.get_object())
+        return super(PostDetailView, self).get(*args, **kwargs)
 
     def get_context_data(self, **kwargs):
         context = super(PostDetailView, self).get_context_data(**kwargs)
@@ -78,7 +91,9 @@ class PostArchiveView(BaseBlogView, ListView):
         kwargs['year'] = int(self.kwargs.get('year')) if 'year' in self.kwargs else None
         if kwargs['year']:
             kwargs['archive_date'] = now().replace(kwargs['year'], kwargs['month'] or 1, 1)
-        return super(PostArchiveView, self).get_context_data(**kwargs)
+        context = super(PostArchiveView, self).get_context_data(**kwargs)
+        context['TRUNCWORDS_COUNT'] = get_setting('POSTS_LIST_TRUNCWORDS_COUNT')
+        return context
 
 
 class TaggedListView(BaseBlogView, ListView):
@@ -95,7 +110,9 @@ class TaggedListView(BaseBlogView, ListView):
     def get_context_data(self, **kwargs):
         kwargs['tagged_entries'] = (self.kwargs.get('tag')
                                     if 'tag' in self.kwargs else None)
-        return super(TaggedListView, self).get_context_data(**kwargs)
+        context = super(TaggedListView, self).get_context_data(**kwargs)
+        context['TRUNCWORDS_COUNT'] = get_setting('POSTS_LIST_TRUNCWORDS_COUNT')
+        return context
 
 
 class AuthorEntriesView(BaseBlogView, ListView):
@@ -113,7 +130,9 @@ class AuthorEntriesView(BaseBlogView, ListView):
 
     def get_context_data(self, **kwargs):
         kwargs['author'] = User.objects.get(**{User.USERNAME_FIELD: self.kwargs.get('username')})
-        return super(AuthorEntriesView, self).get_context_data(**kwargs)
+        context = super(AuthorEntriesView, self).get_context_data(**kwargs)
+        context['TRUNCWORDS_COUNT'] = get_setting('POSTS_LIST_TRUNCWORDS_COUNT')
+        return context
 
 
 class CategoryEntriesView(BaseBlogView, ListView):
@@ -127,8 +146,16 @@ class CategoryEntriesView(BaseBlogView, ListView):
     @property
     def category(self):
         if not self._category:
-            self._category = BlogCategory.objects.active_translations(get_language(), slug=self.kwargs['category']).latest('pk')
+            self._category = BlogCategory.objects.active_translations(
+                get_language(), slug=self.kwargs['category']
+            ).get()
         return self._category
+
+    def get(self, *args, **kwargs):
+        # submit object to cms toolbar to get correct language switcher behavior
+        if hasattr(self.request, 'toolbar'):
+            self.request.toolbar.set_object(self.category)
+        return super(CategoryEntriesView, self).get(*args, **kwargs)
 
     def get_queryset(self):
         qs = super(CategoryEntriesView, self).get_queryset()
@@ -138,4 +165,6 @@ class CategoryEntriesView(BaseBlogView, ListView):
 
     def get_context_data(self, **kwargs):
         kwargs['category'] = self.category
-        return super(CategoryEntriesView, self).get_context_data(**kwargs)
+        context = super(CategoryEntriesView, self).get_context_data(**kwargs)
+        context['TRUNCWORDS_COUNT'] = get_setting('POSTS_LIST_TRUNCWORDS_COUNT')
+        return context

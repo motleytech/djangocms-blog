@@ -1,16 +1,16 @@
 # -*- coding: utf-8 -*-
+from __future__ import absolute_import, print_function, unicode_literals
+
 import django
 from django.contrib.sites.models import Site
-from django.db.models import Q
+from django.db import models
+from django.utils.timezone import now
+from parler.managers import TranslatableQuerySet, TranslationManager
 
 try:
     from collections import Counter
 except ImportError:
     from .compat import Counter
-
-from django.db import models
-from django.utils.timezone import now
-from parler.managers import TranslationManager, TranslatableQuerySet
 
 
 class TaggedFilterItem(object):
@@ -36,8 +36,12 @@ class TaggedFilterItem(object):
                 filtro.update(item.tags.all())
             filtro = set([tag.id for tag in filtro])
         elif other_model is not None:
-            filtro = set(TaggedItem.objects.filter(content_type__model=other_model.__name__.lower()).values_list('tag_id', flat=True))
-        tags = set(TaggedItem.objects.filter(content_type__model=self.model.__name__.lower()).values_list('tag_id', flat=True))
+            filtro = set(TaggedItem.objects.filter(
+                content_type__model=other_model.__name__.lower()
+            ).values_list('tag_id', flat=True))
+        tags = set(TaggedItem.objects.filter(
+            content_type__model=self.model.__name__.lower()
+        ).values_list('tag_id', flat=True))
         if filtro is not None:
             tags = tags.intersection(filtro)
         return list(tags)
@@ -78,7 +82,8 @@ class GenericDateQuerySet(TranslatableQuerySet):
     publish_field = 'publish'
 
     def on_site(self):
-        return self.filter(Q(sites__isnull=True) | Q(sites=Site.objects.get_current().pk))
+        return self.filter(models.Q(sites__isnull=True) |
+                           models.Q(sites=Site.objects.get_current().pk))
 
     def published(self):
         queryset = self.published_future()
@@ -145,7 +150,8 @@ class GenericDateTaggedManager(TaggedFilterItem, TranslationManager):
 
     def get_months(self, queryset=None):
         """
-        Get months with aggregate count (how much posts is in the month). Results are ordered by date.
+        Get months with aggregate count (how much posts is in the month).
+        Results are ordered by date.
         """
         if queryset is None:
             queryset = self.get_queryset()

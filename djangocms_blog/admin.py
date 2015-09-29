@@ -1,15 +1,23 @@
 # -*- coding: utf-8 -*-
-from admin_enhancer.admin import EnhancedModelAdminMixin
-from cms.admin.placeholderadmin import PlaceholderAdminMixin, FrontendEditableAdminMixin
+from __future__ import absolute_import, print_function, unicode_literals
+
 from copy import deepcopy
-from django.contrib import admin
+
+from cms.admin.placeholderadmin import FrontendEditableAdminMixin, PlaceholderAdminMixin
+from django import forms
 from django.conf import settings
+from django.contrib import admin
 from django.contrib.auth import get_user_model
 from parler.admin import TranslatableAdmin
 
-from .forms import PostAdminForm
-from .models import Post, BlogCategory
+from .models import BlogCategory, Post
 from .settings import get_setting
+
+try:
+    from admin_enhancer.admin import EnhancedModelAdminMixin
+except ImportError:
+    class EnhancedModelAdminMixin(object):
+        pass
 
 
 class BlogCategoryAdmin(EnhancedModelAdminMixin, TranslatableAdmin):
@@ -24,8 +32,7 @@ class BlogCategoryAdmin(EnhancedModelAdminMixin, TranslatableAdmin):
 
 
 class PostAdmin(EnhancedModelAdminMixin, FrontendEditableAdminMixin,
-                PlaceholderAdminMixin, TranslatableAdmin, admin.ModelAdmin):
-    form = PostAdminForm
+                PlaceholderAdminMixin, TranslatableAdmin):
     list_display = ['title', 'author', 'date_published', 'date_published_end']
     date_hierarchy = 'date_published'
     raw_id_fields = ['author']
@@ -33,14 +40,14 @@ class PostAdmin(EnhancedModelAdminMixin, FrontendEditableAdminMixin,
     enhance_exclude = ('main_image', 'tags')
     _fieldsets = [
         (None, {
-            'fields': [('title', 'categories', 'publish'), 'abstract']
+            'fields': [('title', 'categories', 'publish')]
         }),
         ('Info', {
             'fields': (['slug', 'tags'],
                        ('date_published', 'date_published_end', 'enable_comments')),
             'classes': ('collapse',)
         }),
-        ('Immagine', {
+        ('Images', {
             'fields': (('main_image', 'main_image_thumbnail', 'main_image_full'),),
             'classes': ('collapse',)
         }),
@@ -50,8 +57,20 @@ class PostAdmin(EnhancedModelAdminMixin, FrontendEditableAdminMixin,
         }),
     ]
 
+    def formfield_for_dbfield(self, db_field, **kwargs):
+        field = super(PostAdmin, self).formfield_for_dbfield(db_field, **kwargs)
+        if db_field.name == 'meta_description':
+            original_attrs = field.widget.attrs
+            original_attrs['maxlength'] = 160
+            field.widget = forms.TextInput(original_attrs)
+        elif db_field.name == 'meta_title':
+            field.max_length = 70
+        return field
+
     def get_fieldsets(self, request, obj=None):
         fsets = deepcopy(self._fieldsets)
+        if get_setting('USE_ABSTRACT'):
+            fsets[0][1]['fields'].append('abstract')
         if not get_setting('USE_PLACEHOLDER'):
             fsets[0][1]['fields'].append('post_text')
         if get_setting('MULTISITE'):

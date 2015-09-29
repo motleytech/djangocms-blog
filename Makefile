@@ -13,6 +13,7 @@ help:
 clean: clean-build clean-pyc
 
 clean-build:
+	python setup.py clean --all
 	rm -fr build/
 	rm -fr dist/
 	rm -fr *.egg-info
@@ -23,7 +24,7 @@ clean-pyc:
 	find . -name '*~' -exec rm -f {} +
 
 lint:
-	flake8 djangocms_blog
+	flake8 djangocms_blog tests
 	djangocms-helper djangocms_blog pyflakes --cms
 
 test:
@@ -38,8 +39,8 @@ coverage:
 	coverage report -m
 
 release: clean
-	python setup.py sdist upload
-	python setup.py bdist_wheel upload
+	python setup.py sdist bdist_wheel
+	twine upload dist/*
 
 sdist: clean
 	python setup.py sdist

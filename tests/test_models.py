@@ -1,8 +1,12 @@
 # -*- coding: utf-8 -*-
+from __future__ import absolute_import, print_function, unicode_literals
+
+from copy import deepcopy
+
+import parler
 from cms.api import add_plugin
 from cms.utils.copy_plugins import copy_plugins_to
 from cms.utils.plugins import downcast_plugins
-from copy import deepcopy
 from django.contrib import admin
 from django.contrib.auth.models import AnonymousUser
 from django.contrib.messages.middleware import MessageMiddleware
@@ -10,12 +14,11 @@ from django.contrib.sites.models import Site
 from django.core.urlresolvers import reverse
 from django.utils.timezone import now
 from django.utils.translation import get_language, override
-import parler
+from djangocms_helper.utils import CMS_30
 from taggit.models import Tag
 
 from djangocms_blog.models import Post
 from djangocms_blog.settings import get_setting
-
 
 from . import BaseTest
 
@@ -34,6 +37,13 @@ class AdminTest(BaseTest):
             fsets = post_admin.get_fieldsets(request)
             self.assertTrue('post_text' in fsets[0][1]['fields'])
 
+        with self.settings(BLOG_USE_ABSTRACT=True):
+            fsets = post_admin.get_fieldsets(request)
+            self.assertTrue('abstract' in fsets[0][1]['fields'])
+        with self.settings(BLOG_USE_ABSTRACT=False):
+            fsets = post_admin.get_fieldsets(request)
+            self.assertFalse('abstract' in fsets[0][1]['fields'])
+
         with self.settings(BLOG_MULTISITE=True):
             fsets = post_admin.get_fieldsets(request)
             self.assertTrue('sites' in fsets[1][1]['fields'][0])
@@ -47,47 +57,66 @@ class AdminTest(BaseTest):
 
     def test_admin_auto_author(self):
         page1, page2 = self.get_pages()
-        request = self.get_page_request('/', self.user_staff, r'/en/blog/', edit=False)
         data = deepcopy(self.data['en'][0])
 
-        with self.settings(BLOG_AUTHOR_DEFAULT=True):
-            data['date_published_0'] = now().strftime('%Y-%m-%d')
-            data['date_published_1'] = now().strftime('%H:%M:%S')
-            data['categories'] = self.category_1.pk
-            request = self.post_request(page1, 'en', data=data)
-            msg_mid = MessageMiddleware()
-            msg_mid.process_request(request)
-            post_admin = admin.site._registry[Post]
-            post_admin.add_view(request)
-            self.assertEqual(Post.objects.count(), 1)
-            self.assertEqual(Post.objects.get(translations__slug='first-post').author_id,
-                             request.user.pk)
+        with self.login_user_context(self.user):
+            with self.settings(BLOG_AUTHOR_DEFAULT=True):
+                data['date_published_0'] = now().strftime('%Y-%m-%d')
+                data['date_published_1'] = now().strftime('%H:%M:%S')
+                data['categories'] = self.category_1.pk
+                request = self.post_request(page1, 'en', user=self.user, data=data, path='/en/?edit_fields=post_text')
+                msg_mid = MessageMiddleware()
+                msg_mid.process_request(request)
+                post_admin = admin.site._registry[Post]
+                response = post_admin.add_view(request)
+                self.assertEqual(response.status_code, 302)
+                self.assertEqual(Post.objects.count(), 1)
+                self.assertEqual(Post.objects.get(translations__slug='first-post').author_id,
+                                 request.user.pk)
 
-        with self.settings(BLOG_AUTHOR_DEFAULT=False):
-            data = deepcopy(self.data['en'][1])
-            data['date_published_0'] = now().strftime('%Y-%m-%d')
-            data['date_published_1'] = now().strftime('%H:%M:%S')
-            data['categories'] = self.category_1.pk
-            request = self.post_request(page1, 'en', data=data)
-            msg_mid = MessageMiddleware()
-            msg_mid.process_request(request)
-            post_admin = admin.site._registry[Post]
-            post_admin.add_view(request)
-            self.assertEqual(Post.objects.count(), 2)
-            self.assertEqual(Post.objects.get(translations__slug='second-post').author_id, None)
+            with self.settings(BLOG_AUTHOR_DEFAULT=False):
+                data = deepcopy(self.data['en'][1])
+                data['date_published_0'] = now().strftime('%Y-%m-%d')
+                data['date_published_1'] = now().strftime('%H:%M:%S')
+                data['categories'] = self.category_1.pk
+                request = self.post_request(page1, 'en', user=self.user, data=data, path='/en/?edit_fields=post_text')
+                msg_mid = MessageMiddleware()
+                msg_mid.process_request(request)
+                post_admin = admin.site._registry[Post]
+                response = post_admin.add_view(request)
+                self.assertEqual(response.status_code, 302)
+                self.assertEqual(Post.objects.count(), 2)
+                self.assertEqual(Post.objects.get(translations__slug='second-post').author_id, None)
 
-        with self.settings(BLOG_AUTHOR_DEFAULT='staff'):
-            data = deepcopy(self.data['en'][2])
-            data['date_published_0'] = now().strftime('%Y-%m-%d')
-            data['date_published_1'] = now().strftime('%H:%M:%S')
-            data['categories'] = self.category_1.pk
-            request = self.post_request(page1, 'en', data=data)
-            msg_mid = MessageMiddleware()
-            msg_mid.process_request(request)
-            post_admin = admin.site._registry[Post]
-            post_admin.add_view(request)
-            self.assertEqual(Post.objects.count(), 3)
-            self.assertEqual(Post.objects.get(translations__slug='third-post').author.username, 'staff')
+            with self.settings(BLOG_AUTHOR_DEFAULT='staff'):
+                data = deepcopy(self.data['en'][2])
+                data['date_published_0'] = now().strftime('%Y-%m-%d')
+                data['date_published_1'] = now().strftime('%H:%M:%S')
+                data['categories'] = self.category_1.pk
+                request = self.post_request(page1, 'en', user=self.user, data=data, path='/en/?edit_fields=post_text')
+                msg_mid = MessageMiddleware()
+                msg_mid.process_request(request)
+                post_admin = admin.site._registry[Post]
+                response = post_admin.add_view(request)
+                self.assertEqual(response.status_code, 302)
+                self.assertEqual(Post.objects.count(), 3)
+                self.assertEqual(Post.objects.get(translations__slug='third-post').author.username, 'staff')
+
+    def test_admin_post_text(self):
+        page1, page2 = self.get_pages()
+        post = self._get_post(self.data['en'][0])
+
+        with self.login_user_context(self.user):
+            with self.settings(BLOG_USE_PLACEHOLDER=False):
+                data = {'post_text': 'ehi text'}
+                request = self.post_request(page1, 'en', user=self.user, data=data, path='/en/?edit_fields=post_text')
+                msg_mid = MessageMiddleware()
+                msg_mid.process_request(request)
+                post_admin = admin.site._registry[Post]
+                response = post_admin.edit_field(request, post.pk, 'en')
+                self.assertEqual(response.status_code, 200)
+                modified_post = Post.objects.language('en').get(pk=post.pk)
+                self.assertEqual(modified_post.safe_translation_getter('post_text'), data['post_text'])
 
 
 class ModelsTest(BaseTest):
@@ -177,7 +206,7 @@ class ModelsTest(BaseTest):
         self.assertEqual(len(Post.objects.available()), 1)
 
         # If post is published but publishing date is in the future
-        post2.date_published = now().replace(year=now().year+1, month=now().month, day=1)
+        post2.date_published = now().replace(year=now().year + 1, month=now().month, day=1)
         post2.publish = True
         post2.save()
         self.assertEqual(len(Post.objects.available()), 2)
@@ -185,15 +214,15 @@ class ModelsTest(BaseTest):
         self.assertEqual(len(Post.objects.archived()), 0)
 
         # If post is published but end publishing date is in the past
-        post2.date_published = now().replace(year=now().year-2, month=now().month, day=1)
-        post2.date_published_end = now().replace(year=now().year-1, month=now().month, day=1)
+        post2.date_published = now().replace(year=now().year - 2, month=now().month, day=1)
+        post2.date_published_end = now().replace(year=now().year - 1, month=now().month, day=1)
         post2.save()
         self.assertEqual(len(Post.objects.available()), 2)
         self.assertEqual(len(Post.objects.published()), 1)
         self.assertEqual(len(Post.objects.archived()), 1)
 
         # counting with language fallback enabled
-        post = self._get_post(self.data['it'][0], post1, 'it')
+        self._get_post(self.data['it'][0], post1, 'it')
         self.assertEqual(len(Post.objects.filter_by_language('it')), 2)
 
         # No fallback
@@ -242,7 +271,7 @@ class ModelsTest(BaseTest):
 
     def test_plugin_latest(self):
         post1 = self._get_post(self.data['en'][0])
-        post2 = self._get_post(self.data['en'][1])
+        self._get_post(self.data['en'][1])
         post1.tags.add('tag 1')
         post1.save()
         request = self.get_page_request('/', AnonymousUser(), r'/en/blog/', edit=False)
@@ -265,13 +294,19 @@ class ModelsTest(BaseTest):
     def test_copy_plugin_latest(self):
         post1 = self._get_post(self.data['en'][0])
         post2 = self._get_post(self.data['en'][1])
-        tag = Tag.objects.create(name='tag 1')
+        tag1 = Tag.objects.create(name='tag 1')
+        tag2 = Tag.objects.create(name='tag 2')
         plugin = add_plugin(post1.content, 'BlogLatestEntriesPlugin', language='en')
-        plugin.tags.add(tag)
-        plugins = list(post1.content.cmsplugin_set.filter(language='en').order_by('tree_id', 'level', 'position'))
+        plugin.tags.add(tag1)
+        plugin.tags.add(tag2)
+        if CMS_30:
+            plugins = list(post1.content.cmsplugin_set.filter(language='en').order_by('tree_id', 'level', 'position'))
+        else:
+            plugins = list(post1.content.cmsplugin_set.filter(language='en').order_by('path', 'depth', 'position'))
         copy_plugins_to(plugins, post2.content)
         new = downcast_plugins(post2.content.cmsplugin_set.all())
-        self.assertEqual(set(new[0].tags.all()), set([tag]))
+        self.assertEqual(set(new[0].tags.all()), set([tag1, tag2]))
+        self.assertEqual(set(new[0].tags.all()), set(plugin.tags.all()))
 
     def test_plugin_author(self):
         post1 = self._get_post(self.data['en'][0])
@@ -297,7 +332,10 @@ class ModelsTest(BaseTest):
         post2 = self._get_post(self.data['en'][1])
         plugin = add_plugin(post1.content, 'BlogAuthorPostsPlugin', language='en')
         plugin.authors.add(self.user)
-        plugins = list(post1.content.cmsplugin_set.filter(language='en').order_by('tree_id', 'level', 'position'))
+        if CMS_30:
+            plugins = list(post1.content.cmsplugin_set.filter(language='en').order_by('tree_id', 'level', 'position'))
+        else:
+            plugins = list(post1.content.cmsplugin_set.filter(language='en').order_by('path', 'depth', 'position'))
         copy_plugins_to(plugins, post2.content)
         new = downcast_plugins(post2.content.cmsplugin_set.all())
         self.assertEqual(set(new[0].authors.all()), set([self.user]))
