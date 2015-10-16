@@ -1,5 +1,5 @@
 {% extends CMS_TEMPLATE %}
-{% load cms_tags staticfiles sekizai_tags menu_tags %}
+{% load cms_tags staticfiles sekizai_tags menu_tags blog_custom_tags %}
 
 {% block meta %}
     {% if meta %}
@@ -7,7 +7,9 @@
     {% endif %}
 {% endblock meta %}
 
+
 {% block content %}
+    {% get_static_placeholder as staticPlaceholder %}
     <div class="multicolumn2 clearfix">
         <div class="column" style="width: 70%; float: left;">
             <div class="app app-blog span8">
@@ -15,7 +17,7 @@
             </div>
         </div>
         <div class="column blog-sidebar" style="width: 26%; float: left; margin-left: 4%;">
-            {% static_placeholder "blog-sidebar" %}
+            {% static_placeholder staticPlaceholder %}
         </div>
     </div>
 {% endblock content %}
