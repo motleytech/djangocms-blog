@@ -150,7 +150,7 @@ class Post(ModelMeta, TranslatableModel):
         'og_description': 'get_description',
         'twitter_description': 'get_description',
         'gplus_description': 'get_description',
-        'locale': None,
+        'locale': 'get_locale',
         'image': 'get_image_full_url',
         'object_type': 'get_meta_attribute',
         'og_type': 'get_meta_attribute',
@@ -158,6 +158,7 @@ class Post(ModelMeta, TranslatableModel):
         'og_profile_id': 'get_meta_attribute',
         'og_publisher': 'get_meta_attribute',
         'og_author_url': 'get_meta_attribute',
+        'og_author': 'get_meta_attribute',
         'twitter_type': 'get_meta_attribute',
         'twitter_site': 'get_meta_attribute',
         'twitter_author': 'get_meta_attribute',
@@ -202,7 +203,21 @@ class Post(ModelMeta, TranslatableModel):
         Retrieves django-meta attributes from apphook config instance
         :param param: django-meta attribute passed as key
         """
-        return getattr(self.app_config, param)
+        attr = None
+        value = getattr(self.app_config, param)
+        if value:
+            attr = getattr(self, value, None)
+        if attr is not None:
+            if callable(attr):
+                try:
+                    data = attr(param)
+                except TypeError:
+                    data = attr()
+            else:
+                data = attr
+        else:
+            data = value
+        return data
 
     def save_translation(self, translation, *args, **kwargs):
         if not translation.slug and translation.title:
@@ -217,6 +232,9 @@ class Post(ModelMeta, TranslatableModel):
 
     def get_keywords(self):
         return self.safe_translation_getter('meta_keywords').strip().split(',')
+
+    def get_locale(self):
+        return self.get_current_language()
 
     def get_description(self):
         description = self.safe_translation_getter('meta_description', any_language=True)
